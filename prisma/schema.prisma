@@ -1,0 +1,364 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  PASSED
+  FAILED
+  ARCHIVED
+}
+
+enum TradeDirection {
+  BUY
+  SELL
+}
+
+enum RuleCategory {
+  ACCOUNT
+  TRADING
+}
+
+enum RuleStatus {
+  ENABLED
+  DISABLED
+}
+
+enum ViolationStatus {
+  FOLLOWED
+  VIOLATED
+  WARNING
+  INFORMATION
+}
+
+enum NewsImpact {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NewsProtectionMode {
+  WARNING_ONLY
+  PROTECTION
+  DISABLED
+}
+
+enum NotificationType {
+  NEWS_WARNING
+  NEWS_ACTIVE
+  NEWS_ENDED
+  RULE_VIOLATION
+  TRADE_IMPORTED
+  BACKUP_COMPLETED
+  SYSTEM
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         Role      @default(USER)
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  timezone     String    @default("Asia/Kolkata")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  accounts     Account[]
+  strategies   Strategy[]
+  trades       Trade[]
+  notifications Notification[]
+  backups      Backup[]
+  userSettings UserSettings?
+  auditLogs    AuditLog[] @relation("AdminAuditLogs")
+  tradingRules TradingRule[]
+  newsSettings NewsSettings[]
+  newsEvents   NewsEvent[] @relation("CreatedNewsEvents")
+  newsWindows  NewsWindow[] @relation("OverriddenNewsWindows")
+}
+
+model Account {
+  id                 String          @id @default(cuid())
+  userId             String
+  name               String
+  propFirm           String
+  accountSize        Decimal
+  startingBalance    Decimal
+  currentBalance     Decimal
+  equity             Decimal
+  profitTarget       Decimal
+  dailyDrawdownLimit Decimal
+  maxDrawdownLimit   Decimal
+  maxRiskPerTrade    Decimal?
+  maxTradesPerDay    Int?
+  maxLotSize         Decimal?
+  minTradingDays     Int?
+  newsRestrictions   Boolean         @default(true)
+  weekendRestrictions Boolean        @default(true)
+  status             ChallengeStatus @default(ACTIVE)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades             Trade[]
+  tradingRules       TradingRule[]
+  newsSettings       NewsSettings[]
+  newsWindows        NewsWindow[]
+}
+
+model Trade {
+  id                String          @id @default(cuid())
+  accountId         String
+  userId            String
+  ticketNumber      String?
+  symbol            String
+  direction         TradeDirection
+  volume            Decimal
+  entryPrice        Decimal
+  exitPrice         Decimal?
+  stopLoss          Decimal?
+  takeProfit        Decimal?
+  profitLoss        Decimal?
+  commission        Decimal         @default(0)
+  swap              Decimal         @default(0)
+  entryTime         DateTime
+  exitTime          DateTime?
+  durationSeconds   Int?
+  strategyId        String?
+  rrRatio           Decimal?
+  tradingviewUrl    String?
+  notes             String?
+  newsStatus        String?
+  ruleStatus        String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  account           Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategy          Strategy?       @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+  mt5Evidence       TradeMt5Evidence[]
+  chartEvidence     TradeChartEvidence[]
+  ruleViolations    RuleViolation[]
+
+  @@index([accountId, entryTime])
+  @@index([userId, entryTime])
+  @@index([symbol])
+}
+
+model TradeMt5Evidence {
+  id               String   @id @default(cuid())
+  tradeId          String
+  storageUrl       String
+  originalFilename String
+  fileSize         Int
+  mimeType         String
+  ocrRawData       Json?
+  createdAt        DateTime @default(now())
+
+  trade            Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model TradeChartEvidence {
+  id               String   @id @default(cuid())
+  tradeId          String
+  storageUrl       String
+  originalFilename String
+  fileSize         Int
+  mimeType         String
+  caption          String?
+  notes            String?
+  displayOrder     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  trade            Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model Strategy {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  market          String?
+  timeframe       String?
+  entryConditions Json?
+  slRules         Json?
+  tpRules         Json?
+  riskRules       Json?
+  exitConditions  Json?
+  sessionRules    Json?
+  newsRules       Json?
+  notes           String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades          Trade[]
+}
+
+model TradingRule {
+  id          String       @id @default(cuid())
+  accountId   String
+  userId      String
+  category    RuleCategory
+  ruleType    String
+  name        String
+  description String?
+  config      Json
+  status      RuleStatus   @default(ENABLED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ruleViolations RuleViolation[]
+}
+
+model RuleViolation {
+  id            String          @id @default(cuid())
+  tradeId       String
+  ruleId        String
+  status        ViolationStatus
+  actualValue   String?
+  expectedValue String?
+  message       String
+  createdAt     DateTime        @default(now())
+
+  trade         Trade           @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  rule          TradingRule     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+}
+
+model NewsEvent {
+  id          String       @id @default(cuid())
+  eventName   String
+  impact      NewsImpact
+  eventTime   DateTime
+  source      String?
+  sourceUrl   String?
+  isManual    Boolean      @default(false)
+  createdById String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  createdBy   User?        @relation("CreatedNewsEvents", fields: [createdById], references: [id], onDelete: SetNull)
+  symbolMappings NewsSymbolMapping[]
+  newsWindows NewsWindow[]
+}
+
+model NewsSymbolMapping {
+  id          String    @id @default(cuid())
+  newsEventId String
+  symbol      String
+
+  newsEvent   NewsEvent @relation(fields: [newsEventId], references: [id], onDelete: Cascade)
+
+  @@unique([newsEventId, symbol])
+}
+
+model NewsSettings {
+  id            String             @id @default(cuid())
+  accountId     String
+  userId        String
+  impactLevel   NewsImpact
+  beforeMinutes Int
+  afterMinutes  Int
+  mode          NewsProtectionMode
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  account       Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, impactLevel])
+}
+
+model NewsWindow {
+  id             String             @id @default(cuid())
+  newsEventId    String
+  accountId      String
+  startTime      DateTime
+  endTime        DateTime
+  mode           NewsProtectionMode
+  isOverridden   Boolean            @default(false)
+  overriddenById String?
+  overrideReason String?
+  createdAt      DateTime           @default(now())
+
+  newsEvent      NewsEvent          @relation(fields: [newsEventId], references: [id], onDelete: Cascade)
+  account        Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  overriddenBy   User?              @relation("OverriddenNewsWindows", fields: [overriddenById], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  data      Json?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String?
+  details    Json?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  admin      User     @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  defaultTimezone      String   @default("Asia/Kolkata")
+  defaultAccountId     String?
+  defaultRisk          Decimal?
+  defaultStrategyId    String?
+  newsAlerts           Boolean  @default(true)
+  ruleViolationAlerts  Boolean  @default(true)
+  dailySummary         Boolean  @default(false)
+  browserNotifications Boolean  @default(false)
+  theme                String   @default("system")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Backup {
+  id         String   @id @default(cuid())
+  userId     String
+  filename   String
+  storageUrl String?
+  fileSize   Int?
+  backupType String   @default("full")
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
