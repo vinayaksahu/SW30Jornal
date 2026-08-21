@@ -14,7 +14,16 @@ export default async function AdminAuditPage() {
     redirect('/dashboard');
   }
 
-  const { logs, total } = await getAuditLogs({ limit: 100 });
+  let logs: any[] = [];
+  let total = 0;
+
+  try {
+    const data = await getAuditLogs({ limit: 100 });
+    logs = data.logs;
+    total = data.total;
+  } catch (err) {
+    console.warn('Admin audit page DB fallback:', err);
+  }
 
   return <AuditClient initialLogs={logs} total={total} />;
 }

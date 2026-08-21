@@ -15,25 +15,37 @@ export default async function NewsPage() {
     redirect('/login');
   }
 
-  // Get user's accounts
-  const accounts = await prisma.account.findMany({
-    where: { userId: session.user.id },
-    select: { id: true, name: true, propFirm: true },
-    orderBy: { createdAt: 'desc' },
-  });
+  let accounts: any[] = [];
+  let activeAccountId: string | undefined = undefined;
+  let initialNews: any[] = [];
+  let initialSettings: any[] = [];
 
-  // Get active or default account
-  const userSettings = await prisma.userSettings.findUnique({
-    where: { userId: session.user.id },
-  });
+  try {
+    // Get user's accounts
+    accounts = await prisma.account.findMany({
+      where: { userId: session.user.id },
+      select: { id: true, name: true, propFirm: true },
+      orderBy: { createdAt: 'desc' },
+    });
 
-  const activeAccountId = userSettings?.defaultAccountId || accounts[0]?.id;
+    // Get active or default account
+    const userSettings = await prisma.userSettings.findUnique({
+      where: { userId: session.user.id },
+    });
 
-  // Initial news events & account settings
-  const [initialNews, initialSettings] = await Promise.all([
-    getNewsEvents(),
-    activeAccountId ? getAccountNewsSettings(activeAccountId) : Promise.resolve([]),
-  ]);
+    activeAccountId = userSettings?.defaultAccountId || accounts[0]?.id;
+
+    // Initial news events & account settings
+    const [fetchedNews, fetchedSettings] = await Promise.all([
+      getNewsEvents(),
+      activeAccountId ? getAccountNewsSettings(activeAccountId) : Promise.resolve([]),
+    ]);
+
+    initialNews = fetchedNews;
+    initialSettings = fetchedSettings;
+  } catch (err) {
+    console.warn('News page DB fallback:', err);
+  }
 
   return (
     <NewsClient
@@ -41,7 +53,7 @@ export default async function NewsPage() {
       accounts={accounts}
       activeAccountId={activeAccountId}
       initialSettings={initialSettings}
-      userRole={session.user.role || 'USER'}
+      userRole={(session.user as any).role || 'USER'}
     />
   );
 }

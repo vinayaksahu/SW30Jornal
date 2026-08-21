@@ -7,20 +7,26 @@ export default async function StrategiesPage() {
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
-  const strategies = await db.strategy.findMany({
-    where: { userId: session.user.id },
-    include: {
-      _count: {
-        select: { trades: true }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  })
+  let strategies: any[] = []
+
+  try {
+    strategies = await db.strategy.findMany({
+      where: { userId: session.user.id },
+      include: {
+        _count: {
+          select: { trades: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  } catch (err) {
+    console.warn('Strategies page DB fallback:', err)
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Strategy Maker</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-zinc-100">Strategy Maker</h2>
       </div>
       <StrategiesClient initialStrategies={strategies} />
     </div>

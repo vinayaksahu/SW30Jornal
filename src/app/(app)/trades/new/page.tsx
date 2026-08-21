@@ -8,15 +8,25 @@ export default async function NewTradePage() {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
-  const accounts = await db.account.findMany({
-    where: { userId: session.user.id },
-    select: { id: true, name: true }
-  })
+  let accounts: any[] = []
+  let strategies: any[] = []
 
-  const strategies = await db.strategy.findMany({
-    where: { userId: session.user.id },
-    select: { id: true, name: true }
-  })
+  try {
+    const [fetchedAccounts, fetchedStrategies] = await Promise.all([
+      db.account.findMany({
+        where: { userId: session.user.id },
+        select: { id: true, name: true }
+      }),
+      db.strategy.findMany({
+        where: { userId: session.user.id },
+        select: { id: true, name: true }
+      })
+    ])
+    accounts = fetchedAccounts
+    strategies = fetchedStrategies
+  } catch (err) {
+    console.warn("New trade page DB fallback:", err)
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 max-w-5xl mx-auto">

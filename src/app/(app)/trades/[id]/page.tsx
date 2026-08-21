@@ -13,22 +13,27 @@ export default async function TradeDetailPage({
   if (!session?.user?.id) redirect('/login');
 
   const { id } = await params;
+  let trade: any = null;
 
-  const trade = await db.trade.findUnique({
-    where: {
-      id,
-      userId: session.user.id,
-    },
-    include: {
-      account: true,
-      strategy: true,
-      mt5Evidence: true,
-      chartEvidence: true,
-      ruleViolations: {
-        include: { rule: true },
+  try {
+    trade = await db.trade.findUnique({
+      where: {
+        id,
+        userId: session.user.id,
       },
-    },
-  });
+      include: {
+        account: true,
+        strategy: true,
+        mt5Evidence: true,
+        chartEvidence: true,
+        ruleViolations: {
+          include: { rule: true },
+        },
+      },
+    });
+  } catch (err) {
+    console.warn('Trade detail page DB fallback:', err);
+  }
 
   if (!trade) notFound();
 
@@ -44,22 +49,22 @@ export default async function TradeDetailPage({
     commission: Number(trade.commission),
     swap: Number(trade.swap),
     rrRatio: trade.rrRatio ? Number(trade.rrRatio) : null,
-    entryTime: trade.entryTime.toISOString(),
-    exitTime: trade.exitTime ? trade.exitTime.toISOString() : null,
-    createdAt: trade.createdAt.toISOString(),
-    updatedAt: trade.updatedAt.toISOString(),
-    mt5Evidence: trade.mt5Evidence.map((e) => ({
+    entryTime: new Date(trade.entryTime).toISOString(),
+    exitTime: trade.exitTime ? new Date(trade.exitTime).toISOString() : null,
+    createdAt: new Date(trade.createdAt).toISOString(),
+    updatedAt: new Date(trade.updatedAt).toISOString(),
+    mt5Evidence: (trade.mt5Evidence || []).map((e: any) => ({
       ...e,
-      createdAt: e.createdAt.toISOString(),
+      createdAt: new Date(e.createdAt).toISOString(),
     })),
-    chartEvidence: trade.chartEvidence.map((e) => ({
+    chartEvidence: (trade.chartEvidence || []).map((e: any) => ({
       ...e,
-      createdAt: e.createdAt.toISOString(),
-      updatedAt: e.updatedAt.toISOString(),
+      createdAt: new Date(e.createdAt).toISOString(),
+      updatedAt: new Date(e.updatedAt).toISOString(),
     })),
-    ruleViolations: trade.ruleViolations.map((rv) => ({
+    ruleViolations: (trade.ruleViolations || []).map((rv: any) => ({
       ...rv,
-      createdAt: rv.createdAt.toISOString(),
+      createdAt: new Date(rv.createdAt).toISOString(),
     })),
   };
 

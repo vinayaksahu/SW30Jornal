@@ -9,16 +9,25 @@ export default async function AccountsPage() {
     redirect('/login');
   }
 
-  const [accounts, userSettings] = await Promise.all([
-    db.account.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: 'desc' },
-    }),
-    db.userSettings.findUnique({
-      where: { userId: session.user.id },
-      select: { defaultAccountId: true },
-    }),
-  ]);
+  let accounts: any[] = [];
+  let userSettings: any = null;
+
+  try {
+    const [fetchedAccounts, fetchedSettings] = await Promise.all([
+      db.account.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.userSettings.findUnique({
+        where: { userId: session.user.id },
+        select: { defaultAccountId: true },
+      }),
+    ]);
+    accounts = fetchedAccounts;
+    userSettings = fetchedSettings;
+  } catch (err) {
+    console.warn('Accounts page DB fallback:', err);
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

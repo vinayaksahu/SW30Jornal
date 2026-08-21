@@ -14,7 +14,12 @@ export default async function AdminUsersPage() {
     redirect('/dashboard');
   }
 
-  const users = await getAdminUsers();
+  let users: any[] = [];
+  try {
+    users = await getAdminUsers();
+  } catch (err) {
+    console.warn('Admin users page DB fallback:', err);
+  }
 
   return <UsersClient initialUsers={users} currentUserId={session.user.id} />;
 }

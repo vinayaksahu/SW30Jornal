@@ -14,9 +14,14 @@ export default async function AdminNewsPage() {
     redirect('/dashboard');
   }
 
-  const events = await db.newsEvent.findMany({
-    orderBy: { eventTime: 'asc' },
-  });
+  let events: any[] = [];
+  try {
+    events = await db.newsEvent.findMany({
+      orderBy: { eventTime: 'asc' },
+    });
+  } catch (err) {
+    console.warn('Admin news page DB fallback:', err);
+  }
 
   return <AdminNewsClient initialEvents={events} />;
 }
