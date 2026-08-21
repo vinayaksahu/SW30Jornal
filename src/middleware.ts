@@ -4,5 +4,17 @@ import { authConfig } from '@/lib/auth-config';
 export default NextAuth(authConfig).auth;
 
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    '/dashboard/:path*',
+    '/accounts/:path*',
+    '/trades/:path*',
+    '/rules/:path*',
+    '/strategies/:path*',
+    '/calendar/:path*',
+    '/analytics/:path*',
+    '/clocks/:path*',
+    '/news/:path*',
+    '/settings/:path*',
+    '/admin/:path*',
+  ],
 };
