@@ -19,7 +19,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { NewsItem } from '@/lib/services/news-service';
-import { syncNewsEvents } from '@/actions/news';
+import { syncNewsEvents, importNewsFromJson } from '@/actions/news';
 import { CurrencyBadge } from '@/components/news/currency-badge';
 import { NewsImpactBadge } from '@/components/news/news-impact-badge';
 import { NewsProtectionBanner } from '@/components/news/news-protection-banner';
@@ -44,6 +44,9 @@ export default function NewsClient({
   const [activeTab, setActiveTab] = useState<'CALENDAR' | 'SETTINGS'>('CALENDAR');
   const [newsList, setNewsList] = useState<NewsItem[]>(initialNews);
   const [isSyncing, startSync] = useTransition();
+  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [isImporting, startImport] = useTransition();
 
   // Filters
   const [impactFilter, setImpactFilter] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL');
@@ -59,20 +62,20 @@ export default function NewsClient({
     const updateClock = () => {
       const now = new Date();
       setCurrentTimeIST(
-        now.toLocaleTimeString('en-IN', {
+        now.toLocaleTimeString('en-US', {
           timeZone: 'Asia/Kolkata',
+          hour12: true,
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
-          hour12: true,
         })
       );
       setCurrentDateIST(
-        now.toLocaleDateString('en-IN', {
+        now.toLocaleDateString('en-US', {
           timeZone: 'Asia/Kolkata',
           weekday: 'short',
-          day: 'numeric',
           month: 'short',
+          day: 'numeric',
           year: 'numeric',
         })
       );
@@ -90,6 +93,23 @@ export default function NewsClient({
         toast.success(`Economic news synchronized! (${res.count} events updated)`);
       } catch (err: any) {
         toast.error(err.message || 'Failed to sync news events');
+      }
+    });
+  };
+
+  const handleImportJson = () => {
+    if (!jsonInput.trim()) {
+      toast.error('Please paste valid JSON news data');
+      return;
+    }
+    startImport(async () => {
+      const res = await importNewsFromJson(jsonInput);
+      if (res.success) {
+        toast.success(`Successfully imported ${res.count} economic news events!`);
+        setIsJsonModalOpen(false);
+        setJsonInput('');
+      } else {
+        toast.error(res.error || 'Failed to import JSON data');
       }
     });
   };
@@ -248,8 +268,108 @@ export default function NewsClient({
             <RefreshCw className={`h-3.5 w-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Syncing...' : 'Sync Live Feed'}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setIsJsonModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-emerald-300 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800 rounded-lg transition-colors shadow"
+          >
+            <Newspaper className="h-3.5 w-3.5 text-emerald-400" />
+            Manual JSON Sync
+          </button>
         </div>
       </div>
+
+      {/* Manual JSON Sync Modal */}
+      {isJsonModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                  <Newspaper className="h-4 w-4 text-emerald-400" />
+                  Manual JSON Economic News Sync
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Paste JSON feed data from ForexFactory, Investing.com, DailyFX, FXStreet, or custom sources.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsJsonModalOpen(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-sm p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>Paste JSON Data below:</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setJsonInput(
+                        JSON.stringify(
+                          [
+                            {
+                              title: 'USD Non-Farm Employment Change (NFP)',
+                              country: 'USD',
+                              date: new Date().toISOString(),
+                              impact: 'High',
+                              forecast: '180K',
+                              previous: '206K',
+                            },
+                            {
+                              title: 'EUR Consumer Price Index (CPI)',
+                              country: 'EUR',
+                              date: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+                              impact: 'High',
+                              forecast: '2.6%',
+                              previous: '2.5%',
+                            },
+                          ],
+                          null,
+                          2
+                        )
+                      )
+                    }
+                    className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-emerald-400 px-2 py-0.5 rounded border border-zinc-700"
+                  >
+                    Load Sample ForexFactory JSON
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                placeholder='[{"title":"USD NFP","country":"USD","date":"2026-08-21T12:30:00Z","impact":"High"}]'
+                rows={10}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-xs font-mono text-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-zinc-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setIsJsonModalOpen(false)}
+                className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-900 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleImportJson}
+                disabled={isImporting || !jsonInput.trim()}
+                className="px-4 py-2 text-xs font-semibold text-black bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 rounded-lg transition-colors shadow"
+              >
+                {isImporting ? 'Importing Events...' : 'Import JSON News Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live News Protection Window Active Banner */}
       <NewsProtectionBanner

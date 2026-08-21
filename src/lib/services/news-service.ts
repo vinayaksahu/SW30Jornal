@@ -894,3 +894,74 @@ export class NewsProtectionEngine {
     return { success: true, window: result };
   }
 }
+
+export interface ExternalNewsItem {
+  title?: string;
+  eventName?: string;
+  name?: string;
+  country?: string;
+  currency?: string;
+  date?: string;
+  time?: string;
+  eventTime?: string;
+  impact?: string;
+  importance?: string;
+  forecast?: string;
+  previous?: string;
+  actual?: string;
+}
+
+/**
+ * Universal Parser for ForexFactory, Investing.com, DailyFX, FXStreet, and custom JSON formats.
+ */
+export function parseAndNormalizeNewsJson(jsonString: string) {
+  try {
+    const rawData = JSON.parse(jsonString);
+    const items: ExternalNewsItem[] = Array.isArray(rawData)
+      ? rawData
+      : rawData.data || rawData.events || rawData.items || [];
+
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('No valid news array found in JSON.');
+    }
+
+    return items.map((item) => {
+      // 1. Title
+      const title = item.title || item.eventName || item.name || 'Economic Event';
+
+      // 2. Currency/Country (USD, EUR, GBP, JPY, AUD, CAD, NZD, CHF, XAU)
+      let country = (item.country || item.currency || 'USD').toUpperCase().trim();
+      if (country === 'GOLD') country = 'XAU';
+
+      // 3. Impact Level Normalization (HIGH, MEDIUM, LOW)
+      let impact: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
+      const rawImpact = String(item.impact || item.importance || '').toLowerCase();
+      if (rawImpact.includes('high') || rawImpact === '3' || rawImpact.includes('red')) {
+        impact = 'HIGH';
+      } else if (rawImpact.includes('low') || rawImpact === '1' || rawImpact.includes('green')) {
+        impact = 'LOW';
+      } else {
+        impact = 'MEDIUM';
+      }
+
+      // 4. Date & Time Normalization
+      const rawTime = item.date || item.eventTime || item.time || new Date().toISOString();
+      const eventTime = new Date(rawTime);
+
+      return {
+        eventName: title.trim(),
+        country,
+        impact,
+        eventTime: isNaN(eventTime.getTime()) ? new Date() : eventTime,
+        forecast: item.forecast || null,
+        previous: item.previous || null,
+        actual: item.actual || null,
+        source: 'Manual JSON Import',
+        isManual: true,
+      };
+    });
+  } catch (err: any) {
+    throw new Error(err.message || 'Invalid JSON format provided.');
+  }
+}
+

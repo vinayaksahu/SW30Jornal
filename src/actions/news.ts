@@ -12,6 +12,7 @@ import {
   NewsCheckResult,
   DEFAULT_PROTECTION_CONFIG,
   getAffectedCurrenciesForSymbol,
+  parseAndNormalizeNewsJson,
 } from '@/lib/services/news-service';
 
 export interface GetNewsEventsParams {
@@ -364,6 +365,66 @@ export async function createAndOverrideNewsWindow(
   revalidatePath('/trades');
 
   return { success: true, window: newWindow };
+}
+
+/**
+ * Manual JSON Import Action for ForexFactory, Investing.com, DailyFX, FXStreet feeds
+ */
+export async function importNewsFromJson(jsonContent: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+
+  try {
+    const normalizedEvents = parseAndNormalizeNewsJson(jsonContent);
+
+    if (!normalizedEvents || normalizedEvents.length === 0) {
+      return { error: 'No valid news events found in JSON string' };
+    }
+
+    let importedCount = 0;
+
+    for (const event of normalizedEvents) {
+      const existing = await prisma.newsEvent.findFirst({
+        where: {
+          eventName: event.eventName,
+          eventTime: event.eventTime,
+        },
+      });
+
+      if (!existing) {
+        await prisma.newsEvent.create({
+          data: {
+            eventName: event.eventName,
+            impact: event.impact,
+            eventTime: event.eventTime,
+            source: event.source,
+            isManual: true,
+            isActive: true,
+            symbolMappings: {
+              create: [{ symbol: event.country.toUpperCase() }],
+            },
+          },
+        });
+        importedCount++;
+      } else {
+        await prisma.newsEvent.update({
+          where: { id: existing.id },
+          data: {
+            impact: event.impact,
+          },
+        });
+      }
+    }
+
+    revalidatePath('/news');
+    revalidatePath('/admin/news');
+    revalidatePath('/trades/new');
+    revalidatePath('/trades');
+
+    return { success: true, count: importedCount };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to import JSON news data' };
+  }
 }
 
 /**
