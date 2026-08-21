@@ -397,7 +397,7 @@ export async function importNewsFromJson(jsonContent: string) {
             eventName: event.eventName,
             impact: event.impact,
             eventTime: event.eventTime,
-            source: event.source,
+            source: event.source || 'ForexFactory',
             isManual: true,
             isActive: true,
             symbolMappings: {
@@ -407,12 +407,22 @@ export async function importNewsFromJson(jsonContent: string) {
         });
         importedCount++;
       } else {
+        // Source tag combining logic (e.g. "ForexFactory, Investing.com")
+        const currentSources = existing.source ? existing.source.split(',').map((s) => s.trim()) : [];
+        const newSource = event.source || 'Investing.com';
+        if (!currentSources.includes(newSource)) {
+          currentSources.push(newSource);
+        }
+        const updatedSource = currentSources.join(', ');
+
         await prisma.newsEvent.update({
           where: { id: existing.id },
           data: {
             impact: event.impact,
+            source: updatedSource,
           },
         });
+        importedCount++;
       }
     }
 
@@ -424,6 +434,46 @@ export async function importNewsFromJson(jsonContent: string) {
     return { success: true, count: importedCount };
   } catch (error: any) {
     return { error: error.message || 'Failed to import JSON news data' };
+  }
+}
+
+/**
+ * Direct Server Action to fetch JSON feed from ForexFactory / Investing.com / etc.
+ */
+export async function syncDirectFeedUrl(feedUrl: string, sourceName: string = 'ForexFactory') {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Unauthorized');
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(feedUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
+      cache: 'no-store',
+    }).catch(() => null);
+
+    clearTimeout(timeoutId);
+
+    if (!res || !res.ok) {
+      return {
+        success: false,
+        error: `Sync failed: Failed to fetch from ${sourceName}. Server or public proxy rate-limited. Please use Manual Sync Fallback below.`,
+      };
+    }
+
+    const textData = await res.text();
+    const events = parseAndNormalizeNewsJson(textData, sourceName);
+    return await importNewsFromJson(JSON.stringify(events));
+  } catch (error: any) {
+    return {
+      success: false,
+      error: `Sync failed: ${error.message || 'Network error'}. Please use Manual Sync Fallback below.`,
+    };
   }
 }
 

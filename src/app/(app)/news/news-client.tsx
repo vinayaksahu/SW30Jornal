@@ -19,7 +19,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { NewsItem } from '@/lib/services/news-service';
-import { syncNewsEvents, importNewsFromJson } from '@/actions/news';
+import { syncNewsEvents, importNewsFromJson, syncDirectFeedUrl } from '@/actions/news';
 import { CurrencyBadge } from '@/components/news/currency-badge';
 import { NewsImpactBadge } from '@/components/news/news-impact-badge';
 import { NewsProtectionBanner } from '@/components/news/news-protection-banner';
@@ -108,6 +108,46 @@ export default function NewsClient({
         toast.success(`Successfully imported ${res.count} economic news events!`);
         setIsJsonModalOpen(false);
         setJsonInput('');
+      } else {
+        toast.error(res.error || 'Failed to import JSON data');
+      }
+    });
+  };
+
+  // Direct Forex Factory & Multi-Source Card State & Handlers
+  const [activeFeedUrl, setActiveFeedUrl] = useState('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+  const [selectedSourceName, setSelectedSourceName] = useState('ForexFactory');
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const [inlineJsonInput, setInlineJsonInput] = useState('');
+  const [isDirectSyncing, startDirectSync] = useTransition();
+
+  const handleDirectSync = (url: string, sourceName: string) => {
+    setActiveFeedUrl(url);
+    setSelectedSourceName(sourceName);
+    setSyncErrorMessage(null);
+
+    startDirectSync(async () => {
+      const res = await syncDirectFeedUrl(url, sourceName);
+      if (res.success && 'count' in res) {
+        toast.success(`Successfully synced ${sourceName} calendar (${res.count} events updated)!`);
+        setSyncErrorMessage(null);
+      } else {
+        setSyncErrorMessage('error' in res ? res.error : 'Failed to fetch news feed.');
+      }
+    });
+  };
+
+  const handleInlineImport = () => {
+    if (!inlineJsonInput.trim()) {
+      toast.error('Please paste JSON text into the box');
+      return;
+    }
+    startImport(async () => {
+      const res = await importNewsFromJson(inlineJsonInput);
+      if (res.success) {
+        toast.success(`Successfully imported ${res.count} events!`);
+        setInlineJsonInput('');
+        setSyncErrorMessage(null);
       } else {
         toast.error(res.error || 'Failed to import JSON data');
       }
@@ -371,6 +411,144 @@ export default function NewsClient({
         </div>
       )}
 
+      {/* Dedicated Forex Factory & Multi-Source Auto-Sync Card (Matching user screenshot) */}
+      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-amber-400" />
+            Forex Factory Auto-Sync & Multi-Source JSON
+          </h3>
+          <span className="text-[11px] text-zinc-400 font-mono">
+            Active Source: <strong className="text-amber-400">{selectedSourceName}</strong>
+          </span>
+        </div>
+
+        {/* Dedicated Primary Sync Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => handleDirectSync('https://nfs.faireconomy.media/ff_calendar_thisweek.json', 'ForexFactory')}
+            disabled={isDirectSyncing}
+            className="flex-1 min-w-[200px] py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs rounded-lg transition-all shadow-lg shadow-orange-950/40 flex items-center justify-center gap-2 border border-amber-400/40 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isDirectSyncing && selectedSourceName === 'ForexFactory' ? 'animate-spin' : ''}`} />
+            Sync This Week (Forex Factory)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDirectSync('https://nfs.faireconomy.media/ff_calendar_nextweek.json', 'ForexFactory')}
+            disabled={isDirectSyncing}
+            className="px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs rounded-lg border border-zinc-800 flex items-center gap-1.5 transition-colors"
+          >
+            📅 + Next Week
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDirectSync('https://api.investing.com/economic-calendar/events', 'Investing.com')}
+            disabled={isDirectSyncing}
+            className="px-4 py-3 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 font-semibold text-xs rounded-lg border border-emerald-800/60 flex items-center gap-1.5 transition-colors"
+          >
+            📊 Investing.com Sync
+          </button>
+        </div>
+
+        {/* Display Sync Error Box if network fetch fails (Matching user uploaded screenshot) */}
+        {syncErrorMessage && (
+          <div className="bg-red-950/30 border border-red-900/50 rounded-lg p-4 space-y-3">
+            <div className="text-xs font-semibold text-red-400 flex items-center gap-1.5">
+              <span>✕</span> {syncErrorMessage}
+            </div>
+            <p className="text-[11px] text-zinc-400">
+              This is typically caused by browser CORS security restrictions when loading the app from local file/domain, or rate-limiting on public proxies.
+            </p>
+
+            {/* Manual Sync Fallback (100% Works) Section */}
+            <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-3.5 space-y-2 text-xs">
+              <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                💡 Manual Sync Fallback (100% Works):
+              </div>
+              <ol className="list-decimal list-inside text-zinc-300 space-y-1 text-[11px] leading-relaxed">
+                <li>
+                  Open the feed in a new tab:{' '}
+                  <a
+                    href={activeFeedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-400 hover:underline font-mono font-semibold"
+                  >
+                    Open {selectedSourceName} Calendar JSON ↗
+                  </a>
+                </li>
+                <li>Press <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-200">Ctrl + A</kbd> then <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-200">Ctrl + C</kbd> on that page to copy the entire JSON text.</li>
+                <li>Paste it into the text box below and click the Import button.</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* Manual JSON Paste Input Box */}
+        <div className="space-y-2 pt-2 border-t border-zinc-900">
+          <div className="flex items-center justify-between text-xs text-zinc-400">
+            <span className="font-medium text-zinc-300">Paste JSON text here (Forex Factory, Investing.com, DailyFX, FXStreet):</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setInlineJsonInput(
+                    JSON.stringify(
+                      [
+                        {
+                          title: 'USD Non-Farm Employment Change (NFP)',
+                          country: 'USD',
+                          date: new Date().toISOString(),
+                          impact: 'High',
+                          forecast: '180K',
+                          previous: '206K',
+                        },
+                        {
+                          title: 'EUR Consumer Price Index (CPI)',
+                          country: 'EUR',
+                          date: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+                          impact: 'High',
+                          forecast: '2.6%',
+                          previous: '2.5%',
+                        },
+                      ],
+                      null,
+                      2
+                    )
+                  )
+                }
+                className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-amber-400 px-2 py-1 rounded border border-zinc-800"
+              >
+                Sample ForexFactory JSON
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+            <textarea
+              value={inlineJsonInput}
+              onChange={(e) => setInlineJsonInput(e.target.value)}
+              placeholder='Paste JSON text here (e.g. [{ "title": "USD NFP", "country": "USD", "date": "2026-08-21T12:30:00Z", "impact": "High" }])'
+              rows={4}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs font-mono text-emerald-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            />
+            <button
+              type="button"
+              onClick={handleInlineImport}
+              disabled={isImporting || !inlineJsonInput.trim()}
+              className="py-3 px-6 text-xs font-bold text-zinc-950 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 rounded-lg transition-colors shadow-lg shadow-amber-950/30 whitespace-nowrap flex sm:flex-col items-center justify-center gap-1.5"
+            >
+              <Newspaper className="h-4 w-4" />
+              Import Data
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Live News Protection Window Active Banner */}
       <NewsProtectionBanner
         symbol="USD"
@@ -600,8 +778,34 @@ export default function NewsClient({
                           {/* Title */}
                           <td className="px-5 py-3.5">
                             <div className="font-semibold text-zinc-100">{item.title}</div>
-                            <div className="text-[10px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
-                              <span>Source: {item.source || 'Economic Calendar'}</span>
+                            <div className="text-[10px] text-zinc-400 flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="text-zinc-500">Sources:</span>
+                              {(item.source || 'ForexFactory').split(',').map((src) => {
+                                const s = src.trim();
+                                const isFF = s.toLowerCase().includes('forexfactory') || s.toLowerCase().includes('ff');
+                                const isInv = s.toLowerCase().includes('investing');
+                                const isDaily = s.toLowerCase().includes('dailyfx');
+                                const isStreet = s.toLowerCase().includes('fxstreet');
+
+                                const badgeColor = isFF
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                  : isInv
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                  : isDaily
+                                  ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                                  : isStreet
+                                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                                  : 'bg-zinc-800 text-zinc-300 border-zinc-700';
+
+                                return (
+                                  <span
+                                    key={s}
+                                    className={`px-1.5 py-0.5 text-[10px] font-medium rounded border ${badgeColor}`}
+                                  >
+                                    🏷️ {s}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </td>
 

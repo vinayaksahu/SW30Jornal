@@ -914,7 +914,7 @@ export interface ExternalNewsItem {
 /**
  * Universal Parser for ForexFactory, Investing.com, DailyFX, FXStreet, and custom JSON formats.
  */
-export function parseAndNormalizeNewsJson(jsonString: string) {
+export function parseAndNormalizeNewsJson(jsonString: string, sourceOverride?: string) {
   try {
     const rawData = JSON.parse(jsonString);
     const items: ExternalNewsItem[] = Array.isArray(rawData)
@@ -948,6 +948,18 @@ export function parseAndNormalizeNewsJson(jsonString: string) {
       const rawTime = item.date || item.eventTime || item.time || new Date().toISOString();
       const eventTime = new Date(rawTime);
 
+      // 5. Source Detection
+      let detectedSource = sourceOverride;
+      if (!detectedSource) {
+        if (item.title && item.country && item.date) {
+          detectedSource = 'ForexFactory';
+        } else if (item.importance || item.currency) {
+          detectedSource = 'Investing.com';
+        } else {
+          detectedSource = 'Economic Calendar';
+        }
+      }
+
       return {
         eventName: title.trim(),
         country,
@@ -956,7 +968,7 @@ export function parseAndNormalizeNewsJson(jsonString: string) {
         forecast: item.forecast || null,
         previous: item.previous || null,
         actual: item.actual || null,
-        source: 'Manual JSON Import',
+        source: detectedSource,
         isManual: true,
       };
     });
