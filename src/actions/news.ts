@@ -371,14 +371,16 @@ export async function createAndOverrideNewsWindow(
  * Manual JSON Import Action for ForexFactory, Investing.com, DailyFX, FXStreet feeds
  */
 export async function importNewsFromJson(jsonContent: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized. Please log in to import news.' };
+    }
+
     const normalizedEvents = parseAndNormalizeNewsJson(jsonContent);
 
     if (!normalizedEvents || normalizedEvents.length === 0) {
-      return { error: 'No valid news events found in JSON string' };
+      return { success: false, error: 'No valid news events found in JSON string' };
     }
 
     let importedCount = 0;
@@ -433,7 +435,7 @@ export async function importNewsFromJson(jsonContent: string) {
 
     return { success: true, count: importedCount };
   } catch (error: any) {
-    return { error: error.message || 'Failed to import JSON news data' };
+    return { success: false, error: error.message || 'Failed to import JSON news data' };
   }
 }
 
@@ -441,10 +443,11 @@ export async function importNewsFromJson(jsonContent: string) {
  * Direct Server Action to fetch JSON feed from ForexFactory / Investing.com / etc.
  */
 export async function syncDirectFeedUrl(feedUrl: string, sourceName: string = 'ForexFactory') {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Unauthorized');
-
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized. Please log in to sync feeds.' };
+    }
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
