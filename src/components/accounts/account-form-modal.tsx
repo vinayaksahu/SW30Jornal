@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { ChallengeStatus } from '@prisma/client';
+import { ChallengeStatus } from '@/types/enums';
 import { X, ShieldAlert, Sparkles } from 'lucide-react';
 import { createAccount, updateAccount } from '@/actions/accounts';
 import { toast } from 'sonner';

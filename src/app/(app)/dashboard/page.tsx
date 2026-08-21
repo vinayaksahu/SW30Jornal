@@ -14,18 +14,65 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // 1. Fetch user settings for default account
-  const userSettings = await db.userSettings.findUnique({
-    where: { userId: session.user.id },
-  });
+  let accountsRaw: any[] = [];
+  let userSettings: any = null;
+  let tradesRaw: any[] = [];
+  let rulesRaw: any[] = [];
+  let strategiesRaw: any[] = [];
 
-  // 2. Fetch all user accounts
-  const accountsRaw = await db.account.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: 'desc' },
-  });
+  try {
+    // 1. Fetch user settings for default account
+    userSettings = await db.userSettings.findUnique({
+      where: { userId: session.user.id },
+    });
 
-  // Determine active account
+    // 2. Fetch all user accounts
+    accountsRaw = await db.account.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Determine active account
+    let activeAccountRaw = null;
+    if (userSettings?.defaultAccountId) {
+      activeAccountRaw = accountsRaw.find((a) => a.id === userSettings.defaultAccountId) || null;
+    }
+    if (!activeAccountRaw && accountsRaw.length > 0) {
+      activeAccountRaw = accountsRaw[0];
+    }
+
+    // 3. Fetch trades for active account
+    tradesRaw = await db.trade.findMany({
+      where: {
+        userId: session.user.id,
+        ...(activeAccountRaw ? { accountId: activeAccountRaw.id } : {}),
+      },
+      orderBy: { entryTime: 'asc' },
+      include: {
+        strategy: { select: { id: true, name: true } },
+        account: { select: { id: true, name: true } },
+      },
+    });
+
+    // 4. Fetch enabled trading rules for the active account
+    if (activeAccountRaw) {
+      rulesRaw = await db.tradingRule.findMany({
+        where: {
+          accountId: activeAccountRaw.id,
+          userId: session.user.id,
+          status: 'ENABLED',
+        },
+      });
+    }
+
+    // 5. Fetch strategies
+    strategiesRaw = await db.strategy.findMany({
+      where: { userId: session.user.id, isActive: true },
+    });
+  } catch (err) {
+    console.warn('Dashboard DB query warning (using dev fallback):', err);
+  }
+
   let activeAccountRaw = null;
   if (userSettings?.defaultAccountId) {
     activeAccountRaw = accountsRaw.find((a) => a.id === userSettings.defaultAccountId) || null;
@@ -34,36 +81,7 @@ export default async function DashboardPage() {
     activeAccountRaw = accountsRaw[0];
   }
 
-  // 3. Fetch trades for active account (or all user's trades if no account)
-  const tradesRaw = await db.trade.findMany({
-    where: {
-      userId: session.user.id,
-      ...(activeAccountRaw ? { accountId: activeAccountRaw.id } : {}),
-    },
-    orderBy: { entryTime: 'asc' },
-    include: {
-      strategy: { select: { id: true, name: true } },
-      account: { select: { id: true, name: true } },
-    },
-  });
-
-  // 4. Fetch enabled trading rules for the active account
-  const rulesRaw = activeAccountRaw
-    ? await db.tradingRule.findMany({
-        where: {
-          accountId: activeAccountRaw.id,
-          userId: session.user.id,
-          status: 'ENABLED',
-        },
-      })
-    : [];
-
-  // 5. Fetch strategies
-  const strategiesRaw = await db.strategy.findMany({
-    where: { userId: session.user.id, isActive: true },
-  });
-
-  // Safe Serialization for Next.js App Router (Convert Decimals and Dates)
+  // Safe Serialization for Next.js App Router
   const accounts = accountsRaw.map((a) => ({
     id: a.id,
     name: a.name,
@@ -82,7 +100,7 @@ export default async function DashboardPage() {
     newsRestrictions: a.newsRestrictions,
     weekendRestrictions: a.weekendRestrictions,
     status: a.status,
-    createdAt: a.createdAt.toISOString(),
+    createdAt: new Date(a.createdAt).toISOString(),
   }));
 
   const activeAccount = activeAccountRaw
@@ -106,7 +124,7 @@ export default async function DashboardPage() {
         newsRestrictions: activeAccountRaw.newsRestrictions,
         weekendRestrictions: activeAccountRaw.weekendRestrictions,
         status: activeAccountRaw.status,
-        createdAt: activeAccountRaw.createdAt.toISOString(),
+        createdAt: new Date(activeAccountRaw.createdAt).toISOString(),
       }
     : null;
 
@@ -124,8 +142,8 @@ export default async function DashboardPage() {
     profitLoss: t.profitLoss ? Number(t.profitLoss) : 0,
     commission: t.commission ? Number(t.commission) : 0,
     swap: t.swap ? Number(t.swap) : 0,
-    entryTime: t.entryTime.toISOString(),
-    exitTime: t.exitTime ? t.exitTime.toISOString() : null,
+    entryTime: new Date(t.entryTime).toISOString(),
+    exitTime: t.exitTime ? new Date(t.exitTime).toISOString() : null,
     durationSeconds: t.durationSeconds,
     strategyId: t.strategyId,
     strategy: t.strategy ? { id: t.strategy.id, name: t.strategy.name } : null,

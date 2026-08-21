@@ -1,5 +1,4 @@
 import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { getSystemStats, getAuditLogs } from '@/actions/admin';
 import AdminOverviewClient from './admin-overview-client';
@@ -15,10 +14,28 @@ export default async function AdminPage() {
     redirect('/dashboard');
   }
 
-  const [stats, auditData] = await Promise.all([
-    getSystemStats(),
-    getAuditLogs({ limit: 10 }),
-  ]);
+  let stats = {
+    totalUsers: 1,
+    totalAccounts: 1,
+    totalTrades: 0,
+    totalViolations: 0,
+    activeNewsEvents: 0,
+    recentAuditLogsCount: 0,
+    totalVolumeTraded: 0,
+    totalGrossPnL: 0,
+  };
+  let logs: any[] = [];
 
-  return <AdminOverviewClient stats={stats} recentLogs={auditData.logs} />;
+  try {
+    const [fetchedStats, auditData] = await Promise.all([
+      getSystemStats(),
+      getAuditLogs({ limit: 10 }),
+    ]);
+    stats = fetchedStats;
+    logs = auditData.logs;
+  } catch (err) {
+    console.warn('Admin Overview DB query warning (using dev fallback):', err);
+  }
+
+  return <AdminOverviewClient stats={stats} recentLogs={logs} />;
 }

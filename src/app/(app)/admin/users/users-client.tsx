@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { updateUserRole } from '@/actions/admin';
-import { Role } from '@prisma/client';
+import { Role } from '@/types/enums';
 import { toast } from 'sonner';
 
 interface UsersClientProps {

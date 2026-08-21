@@ -18,7 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { NewsImpact } from '@prisma/client';
+import { NewsImpact } from '@/types/enums';
 import { createCustomNewsEvent, deleteNewsEvent } from '@/actions/admin';
 import { syncNewsEvents } from '@/actions/news';
 import { CurrencyBadge } from '@/components/news/currency-badge';
@@ -46,7 +46,7 @@ export default function AdminNewsClient({ initialEvents }: AdminNewsClientProps)
   }>({
     title: '',
     country: 'USD',
-    impact: NewsImpact.HIGH,
+    impact: 'HIGH' as NewsImpact,
     eventTime: new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16),
     forecast: '',
     previous: '',
@@ -199,9 +199,9 @@ export default function AdminNewsClient({ initialEvents }: AdminNewsClientProps)
                       onChange={(e) => setFormData({ ...formData, impact: e.target.value as NewsImpact })}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
-                      <option value={NewsImpact.HIGH}>HIGH (🔴 Red)</option>
-                      <option value={NewsImpact.MEDIUM}>MEDIUM (🟡 Yellow)</option>
-                      <option value={NewsImpact.LOW}>LOW (🟢 Green)</option>
+                      <option value="HIGH">HIGH (🔴 Red)</option>
+                      <option value="MEDIUM">MEDIUM (🟡 Yellow)</option>
+                      <option value="LOW">LOW (🟢 Green)</option>
                     </select>
                   </div>
                 </div>

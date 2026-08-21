@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RuleCategory, RuleStatus } from '@prisma/client'
+import { RuleCategory, RuleStatus } from '@/types/enums'
 import { toggleRule, deleteRule, createRule } from '@/actions/rules'
 
 type Account = { id: string; name: string; propFirm: string }

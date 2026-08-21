@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Account, ChallengeStatus } from '@prisma/client';
+import { ChallengeStatus } from '@/types/enums';
 import { Plus, Wallet, ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Archive, Edit2, Trash2, Check } from 'lucide-react';
 import { AccountFormModal } from '@/components/accounts/account-form-modal';
 import { deleteAccount, setActiveAccount } from '@/actions/accounts';
@@ -16,7 +16,7 @@ interface AccountsClientProps {
 export default function AccountsClient({ accounts, activeAccountId }: AccountsClientProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [editingAccount, setEditingAccount] = React.useState<Account | null>(null);
+  const [editingAccount, setEditingAccount] = React.useState<any | null>(null);
   const [filter, setFilter] = React.useState<string>('ALL');
 
   const filteredAccounts = React.useMemo(() => {
@@ -29,7 +29,7 @@ export default function AccountsClient({ accounts, activeAccountId }: AccountsCl
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (acc: Account) => {
+  const handleOpenEdit = (acc: any) => {
     setEditingAccount(acc);
     setIsModalOpen(true);
   };

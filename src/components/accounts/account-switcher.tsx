@@ -1,7 +1,8 @@
 'use client';
+
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Account, ChallengeStatus } from '@prisma/client';
+import { ChallengeStatus } from '@/types/enums';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import { setActiveAccount } from '@/actions/accounts';
 import { toast } from 'sonner';
 
 interface AccountSwitcherProps {
-  accounts: Account[];
+  accounts: any[];
   activeAccountId: string | null;
 }
 
@@ -18,7 +19,7 @@ export function AccountSwitcher({ accounts, activeAccountId }: AccountSwitcherPr
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  
+
   const activeAccount = React.useMemo(() => {
     return accounts.find((a) => a.id === activeAccountId) || accounts[0];
   }, [accounts, activeAccountId]);
@@ -29,87 +30,72 @@ export function AccountSwitcher({ accounts, activeAccountId }: AccountSwitcherPr
         setOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const onSelectAccount = async (id: string) => {
-    setOpen(false);
-    if (id === activeAccount?.id) return;
+  const handleSelectAccount = async (accountId: string) => {
     try {
-      await setActiveAccount(id);
+      await setActiveAccount(accountId);
       toast.success('Active account updated');
+      setOpen(false);
       router.refresh();
-    } catch (error) {
-      toast.error('Failed to switch account');
+    } catch (err: any) {
+      toast.error('Failed to change active account');
     }
   };
 
-  const getStatusColor = (status: ChallengeStatus) => {
-    switch (status) {
-      case 'ACTIVE': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'PASSED': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-      case 'FAILED': return 'bg-red-500/10 text-red-500 border-red-500/20';
-      case 'ARCHIVED': return 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20';
-      default: return '';
-    }
-  };
+  if (!accounts || accounts.length === 0) {
+    return null;
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         onClick={() => setOpen(!open)}
-        className="w-[280px] justify-between bg-zinc-950 border-zinc-800 text-zinc-100 hover:bg-zinc-900 hover:text-zinc-50"
+        className="w-full justify-between border-zinc-800 bg-zinc-950 text-xs font-normal text-zinc-100 hover:bg-zinc-900"
       >
-        {activeAccount ? (
-          <div className="flex items-center gap-2 truncate">
-            <span className="font-semibold">{activeAccount.name}</span>
-            <Badge variant="outline" className={cn("text-[10px] px-1 py-0 h-4 rounded-sm", getStatusColor(activeAccount.status))}>
-              {activeAccount.status}
-            </Badge>
-          </div>
-        ) : (
-          <span className="text-zinc-500">Select account...</span>
-        )}
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <div className="flex items-center gap-2 truncate">
+          <span className="font-semibold text-emerald-400">{activeAccount?.name || 'Select Account'}</span>
+          {activeAccount?.propFirm && (
+            <span className="text-[10px] text-zinc-500 font-mono">({activeAccount.propFirm})</span>
+          )}
+        </div>
+        <ChevronsUpDown className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
       </Button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-[280px] bg-zinc-950 border border-zinc-800 rounded-md shadow-lg z-50 overflow-hidden">
-          {accounts.length === 0 ? (
-            <div className="p-4 text-sm text-center text-zinc-500">
-              No accounts found.
-            </div>
-          ) : (
-            <div className="max-h-[300px] overflow-y-auto p-1">
-              {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  onClick={() => onSelectAccount(account.id)}
-                  className="flex flex-col items-start gap-1 p-2 rounded-sm cursor-pointer hover:bg-zinc-900 transition-colors"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-medium text-zinc-100 text-sm">{account.name}</span>
-                    {activeAccount?.id === account.id && (
-                      <Check className="h-4 w-4 text-emerald-500" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span>{account.propFirm}</span>
-                    <span>•</span>
-                    <span>${Number(account.accountSize).toLocaleString()}</span>
-                    <Badge variant="outline" className={cn("text-[10px] px-1 py-0 h-4 rounded-sm border-0 bg-transparent", getStatusColor(account.status))}>
-                      {account.status}
-                    </Badge>
-                  </div>
+        <div className="absolute top-full left-0 mt-1.5 w-full min-w-[240px] z-50 rounded-lg bg-zinc-950 border border-zinc-800 shadow-xl p-1.5 space-y-1 text-xs">
+          <div className="px-2 py-1 text-[10px] uppercase font-semibold text-zinc-500 tracking-wider border-b border-zinc-800/80 mb-1">
+            Trading Accounts ({accounts.length})
+          </div>
+          {accounts.map((acc) => {
+            const isSelected = acc.id === activeAccount?.id;
+            return (
+              <button
+                key={acc.id}
+                onClick={() => handleSelectAccount(acc.id)}
+                className={cn(
+                  'w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left',
+                  isSelected
+                    ? 'bg-emerald-500/10 text-emerald-300 font-medium'
+                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100'
+                )}
+              >
+                <div className="flex flex-col truncate">
+                  <span className="truncate">{acc.name}</span>
+                  <span className="text-[10px] text-zinc-500">
+                    {acc.propFirm} · ${Number(acc.accountSize || 0).toLocaleString()}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+                {isSelected && <Check className="h-4 w-4 text-emerald-400 shrink-0 ml-2" />}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-

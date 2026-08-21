@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ShieldCheck, Sliders, RefreshCw, Save, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { NewsImpact, NewsProtectionMode } from '@prisma/client';
+import { NewsImpact, NewsProtectionMode } from '@/types/enums';
 import { updateAccountNewsSettings } from '@/actions/news';
 import { SYMBOL_MAPPINGS } from '@/lib/services/news-service';
 import { CurrencyBadge } from './currency-badge';
