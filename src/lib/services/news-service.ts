@@ -899,27 +899,36 @@ export interface ExternalNewsItem {
   title?: string;
   eventName?: string;
   name?: string;
+  event?: string;
   country?: string;
   currency?: string;
+  currencyCode?: string;
   date?: string;
   time?: string;
   eventTime?: string;
+  pubDate?: string;
+  dateUtc?: string;
   impact?: string;
   importance?: string;
+  volatility?: string;
+  displayImportance?: string;
   forecast?: string;
+  forecastValue?: string;
   previous?: string;
+  previousValue?: string;
   actual?: string;
+  actualValue?: string;
 }
 
 /**
- * Universal Parser for ForexFactory, Investing.com, DailyFX, FXStreet, and custom JSON formats.
+ * Universal Parser for ForexFactory, Investing.com, DailyFX, FXStreet, Myfxbook, and custom JSON formats.
  */
 export function parseAndNormalizeNewsJson(jsonString: string, sourceOverride?: string) {
   try {
     const rawData = JSON.parse(jsonString);
     const items: ExternalNewsItem[] = Array.isArray(rawData)
       ? rawData
-      : rawData.data || rawData.events || rawData.items || [];
+      : rawData.data || rawData.events || rawData.items || rawData.result || [];
 
     if (!Array.isArray(items) || items.length === 0) {
       throw new Error('No valid news array found in JSON.');
@@ -927,34 +936,57 @@ export function parseAndNormalizeNewsJson(jsonString: string, sourceOverride?: s
 
     return items.map((item) => {
       // 1. Title
-      const title = item.title || item.eventName || item.name || 'Economic Event';
+      const title = item.title || item.eventName || item.name || item.event || 'Economic Event';
 
       // 2. Currency/Country (USD, EUR, GBP, JPY, AUD, CAD, NZD, CHF, XAU)
-      let country = (item.country || item.currency || 'USD').toUpperCase().trim();
+      let country = (item.country || item.currency || item.currencyCode || 'USD').toUpperCase().trim();
       if (country === 'GOLD') country = 'XAU';
 
       // 3. Impact Level Normalization (HIGH, MEDIUM, LOW)
       let impact: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
-      const rawImpact = String(item.impact || item.importance || '').toLowerCase();
-      if (rawImpact.includes('high') || rawImpact === '3' || rawImpact.includes('red')) {
+      const rawImpact = String(
+        item.impact || item.importance || item.volatility || item.displayImportance || ''
+      ).toLowerCase();
+
+      if (
+        rawImpact.includes('high') ||
+        rawImpact === '3' ||
+        rawImpact.includes('red') ||
+        rawImpact.includes('volatility_high')
+      ) {
         impact = 'HIGH';
-      } else if (rawImpact.includes('low') || rawImpact === '1' || rawImpact.includes('green')) {
+      } else if (
+        rawImpact.includes('low') ||
+        rawImpact === '1' ||
+        rawImpact.includes('green') ||
+        rawImpact.includes('volatility_low')
+      ) {
         impact = 'LOW';
       } else {
         impact = 'MEDIUM';
       }
 
       // 4. Date & Time Normalization
-      const rawTime = item.date || item.eventTime || item.time || new Date().toISOString();
+      const rawTime =
+        item.date ||
+        item.eventTime ||
+        item.time ||
+        item.pubDate ||
+        item.dateUtc ||
+        new Date().toISOString();
       const eventTime = new Date(rawTime);
 
       // 5. Source Detection
       let detectedSource = sourceOverride;
       if (!detectedSource) {
-        if (item.title && item.country && item.date) {
-          detectedSource = 'ForexFactory';
-        } else if (item.importance || item.currency) {
+        if (item.currencyCode || item.dateUtc || item.volatility) {
+          detectedSource = 'FXStreet';
+        } else if (item.displayImportance || item.pubDate || item.forecastValue) {
+          detectedSource = 'DailyFX';
+        } else if (item.event || item.importance) {
           detectedSource = 'Investing.com';
+        } else if (item.title && item.country && item.date) {
+          detectedSource = 'ForexFactory';
         } else {
           detectedSource = 'Economic Calendar';
         }
@@ -965,9 +997,9 @@ export function parseAndNormalizeNewsJson(jsonString: string, sourceOverride?: s
         country,
         impact,
         eventTime: isNaN(eventTime.getTime()) ? new Date() : eventTime,
-        forecast: item.forecast || null,
-        previous: item.previous || null,
-        actual: item.actual || null,
+        forecast: item.forecast || item.forecastValue || null,
+        previous: item.previous || item.previousValue || null,
+        actual: item.actual || item.actualValue || null,
         source: detectedSource,
         isManual: true,
       };

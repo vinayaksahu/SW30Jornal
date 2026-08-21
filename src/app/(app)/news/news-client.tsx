@@ -423,23 +423,23 @@ export default function NewsClient({
           </span>
         </div>
 
-        {/* Dedicated Primary Sync Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Dedicated Primary Sync Action Buttons for all Major News Portals */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => handleDirectSync('https://nfs.faireconomy.media/ff_calendar_thisweek.json', 'ForexFactory')}
             disabled={isDirectSyncing}
-            className="flex-1 min-w-[200px] py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs rounded-lg transition-all shadow-lg shadow-orange-950/40 flex items-center justify-center gap-2 border border-amber-400/40 disabled:opacity-50"
+            className="flex-1 min-w-[180px] py-2.5 px-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs rounded-lg transition-all shadow-lg shadow-orange-950/40 flex items-center justify-center gap-1.5 border border-amber-400/40 disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${isDirectSyncing && selectedSourceName === 'ForexFactory' ? 'animate-spin' : ''}`} />
-            Sync This Week (Forex Factory)
+            <RefreshCw className={`h-3.5 w-3.5 ${isDirectSyncing && selectedSourceName === 'ForexFactory' ? 'animate-spin' : ''}`} />
+            Forex Factory (This Week)
           </button>
 
           <button
             type="button"
             onClick={() => handleDirectSync('https://nfs.faireconomy.media/ff_calendar_nextweek.json', 'ForexFactory')}
             disabled={isDirectSyncing}
-            className="px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs rounded-lg border border-zinc-800 flex items-center gap-1.5 transition-colors"
+            className="px-3.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs rounded-lg border border-zinc-800 flex items-center gap-1.5 transition-colors"
           >
             📅 + Next Week
           </button>
@@ -448,9 +448,27 @@ export default function NewsClient({
             type="button"
             onClick={() => handleDirectSync('https://api.investing.com/economic-calendar/events', 'Investing.com')}
             disabled={isDirectSyncing}
-            className="px-4 py-3 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 font-semibold text-xs rounded-lg border border-emerald-800/60 flex items-center gap-1.5 transition-colors"
+            className="px-3.5 py-2.5 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 font-semibold text-xs rounded-lg border border-emerald-800/60 flex items-center gap-1.5 transition-colors"
           >
-            📊 Investing.com Sync
+            📊 Investing.com
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDirectSync('https://www.dailyfx.com/economic-calendar/events', 'DailyFX')}
+            disabled={isDirectSyncing}
+            className="px-3.5 py-2.5 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 font-semibold text-xs rounded-lg border border-purple-800/60 flex items-center gap-1.5 transition-colors"
+          >
+            📈 DailyFX
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDirectSync('https://calendar-api.fxstreet.com/en/api/v1/eventDates', 'FXStreet')}
+            disabled={isDirectSyncing}
+            className="px-3.5 py-2.5 bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 font-semibold text-xs rounded-lg border border-blue-800/60 flex items-center gap-1.5 transition-colors"
+          >
+            🏷️ FXStreet
           </button>
         </div>
 
@@ -461,7 +479,7 @@ export default function NewsClient({
               <span>✕</span> {syncErrorMessage}
             </div>
             <p className="text-[11px] text-zinc-400">
-              This is typically caused by browser CORS security restrictions when loading the app from local file/domain, or rate-limiting on public proxies.
+              This is typically caused by browser CORS security restrictions when loading the feed, or public API rate-limiting.
             </p>
 
             {/* Manual Sync Fallback (100% Works) Section */}
@@ -469,9 +487,9 @@ export default function NewsClient({
               <div className="font-bold text-amber-400 flex items-center gap-1.5">
                 💡 Manual Sync Fallback (100% Works):
               </div>
-              <ol className="list-decimal list-inside text-zinc-300 space-y-1 text-[11px] leading-relaxed">
+              <ol className="list-decimal list-inside text-zinc-300 space-y-1.5 text-[11px] leading-relaxed">
                 <li>
-                  Open the feed in a new tab:{' '}
+                  Open the JSON feed link in a new tab:{' '}
                   <a
                     href={activeFeedUrl}
                     target="_blank"
@@ -481,8 +499,8 @@ export default function NewsClient({
                     Open {selectedSourceName} Calendar JSON ↗
                   </a>
                 </li>
-                <li>Press <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-200">Ctrl + A</kbd> then <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-200">Ctrl + C</kbd> on that page to copy the entire JSON text.</li>
-                <li>Paste it into the text box below and click the Import button.</li>
+                <li>Press <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-200 font-mono">Ctrl + A</kbd> then <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-200 font-mono">Ctrl + C</kbd> on that page to copy the entire JSON text.</li>
+                <li>Paste it into the text box below and click the <strong>Import Data</strong> button.</li>
               </ol>
             </div>
           </div>
@@ -490,9 +508,9 @@ export default function NewsClient({
 
         {/* Manual JSON Paste Input Box */}
         <div className="space-y-2 pt-2 border-t border-zinc-900">
-          <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span className="font-medium text-zinc-300">Paste JSON text here (Forex Factory, Investing.com, DailyFX, FXStreet):</span>
-            <div className="flex gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
+            <span className="font-medium text-zinc-300">Paste JSON text here (Forex Factory, Investing.com, DailyFX, FXStreet, Myfxbook):</span>
+            <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() =>
@@ -521,9 +539,67 @@ export default function NewsClient({
                     )
                   )
                 }
-                className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-amber-400 px-2 py-1 rounded border border-zinc-800"
+                className="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 font-mono"
               >
-                Sample ForexFactory JSON
+                + ForexFactory Sample
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setInlineJsonInput(
+                    JSON.stringify(
+                      [
+                        {
+                          event: 'GBP Interest Rate Decision',
+                          currency: 'GBP',
+                          date: new Date().toISOString(),
+                          importance: 'high',
+                          forecast: '5.00%',
+                          previous: '5.25%',
+                        },
+                        {
+                          event: 'USD ISM Manufacturing PMI',
+                          currency: 'USD',
+                          date: new Date(Date.now() + 5 * 3600 * 1000).toISOString(),
+                          importance: 'high',
+                          forecast: '49.0',
+                          previous: '48.5',
+                        },
+                      ],
+                      null,
+                      2
+                    )
+                  )
+                }
+                className="text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30 font-mono"
+              >
+                + Investing.com Sample
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setInlineJsonInput(
+                    JSON.stringify(
+                      [
+                        {
+                          name: 'USD Federal Reserve Rate Decision',
+                          currencyCode: 'USD',
+                          dateUtc: new Date().toISOString(),
+                          volatility: 'volatility_high',
+                          forecast: '5.50%',
+                          previous: '5.50%',
+                        },
+                      ],
+                      null,
+                      2
+                    )
+                  )
+                }
+                className="text-[10px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30 font-mono"
+              >
+                + FXStreet Sample
               </button>
             </div>
           </div>
