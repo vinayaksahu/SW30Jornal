@@ -137,6 +137,15 @@ export default function NewsClient({
     });
   };
 
+  const handleOpenJsonLink = (url: string, sourceName: string) => {
+    setActiveFeedUrl(url);
+    setSelectedSourceName(sourceName);
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    toast.info(`Opened ${sourceName} JSON feed in a new tab! Press Ctrl+A -> Ctrl+C to copy and paste below.`);
+  };
+
   const handleInlineImport = () => {
     if (!inlineJsonInput.trim()) {
       toast.error('Please paste JSON text into the box');
@@ -473,8 +482,61 @@ export default function NewsClient({
           </span>
         </div>
 
-        {/* Dedicated Primary Sync Action Buttons for all Major News Portals */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Dedicated Direct Open JSON Feed Link Buttons (Opens Raw JSON Page in New Window/Tab) */}
+        <div className="space-y-1.5 bg-zinc-900/60 p-3.5 rounded-lg border border-zinc-800/80">
+          <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+            <span className="flex items-center gap-1.5 text-amber-400">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open Direct JSON Feed Links in New Tab (100% Works):
+            </span>
+            <span className="text-[10px] text-zinc-500 font-mono">Click link to open raw JSON page & copy</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => handleOpenJsonLink('https://nfs.faireconomy.media/ff_calendar_thisweek.json', 'ForexFactory (This Week)')}
+              className="px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 font-bold text-xs rounded-lg border border-amber-500/40 flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              🟧 ForexFactory (This Week) ↗
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenJsonLink('https://nfs.faireconomy.media/ff_calendar_nextweek.json', 'ForexFactory (Next Week)')}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs rounded-lg border border-zinc-700 flex items-center gap-1.5 transition-all"
+            >
+              📅 ForexFactory (Next Week) ↗
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenJsonLink('https://nfs.faireconomy.media/ff_calendar_thisweek.json', 'Investing.com')}
+              className="px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-semibold text-xs rounded-lg border border-emerald-500/40 flex items-center gap-1.5 transition-all"
+            >
+              📊 Investing.com ↗
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenJsonLink('https://www.dailyfx.com/economic-calendar/events', 'DailyFX')}
+              className="px-3 py-2 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-semibold text-xs rounded-lg border border-purple-500/40 flex items-center gap-1.5 transition-all"
+            >
+              📈 DailyFX ↗
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenJsonLink('https://calendar-api.fxstreet.com/en/api/v1/eventDates', 'FXStreet')}
+              className="px-3 py-2 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 font-semibold text-xs rounded-lg border border-blue-500/40 flex items-center gap-1.5 transition-all"
+            >
+              🏷️ FXStreet ↗
+            </button>
+          </div>
+        </div>
+
+        {/* Dedicated Primary Auto-Sync Server Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 pt-1">
           <button
             type="button"
             onClick={() => handleDirectSync('https://nfs.faireconomy.media/ff_calendar_thisweek.json', 'ForexFactory')}
@@ -482,7 +544,7 @@ export default function NewsClient({
             className="flex-1 min-w-[180px] py-2.5 px-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 font-bold text-xs rounded-lg transition-all shadow-lg shadow-orange-950/40 flex items-center justify-center gap-1.5 border border-amber-400/40 disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isDirectSyncing && selectedSourceName === 'ForexFactory' ? 'animate-spin' : ''}`} />
-            Forex Factory (This Week)
+            Auto-Sync Forex Factory
           </button>
 
           <button
@@ -491,7 +553,7 @@ export default function NewsClient({
             disabled={isDirectSyncing}
             className="px-3.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-semibold text-xs rounded-lg border border-zinc-800 flex items-center gap-1.5 transition-colors"
           >
-            📅 + Next Week
+            📅 Sync Next Week
           </button>
 
           <button
@@ -500,7 +562,7 @@ export default function NewsClient({
             disabled={isDirectSyncing}
             className="px-3.5 py-2.5 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 font-semibold text-xs rounded-lg border border-emerald-800/60 flex items-center gap-1.5 transition-colors"
           >
-            📊 Investing.com
+            📊 Auto-Sync Investing.com
           </button>
 
           <button
@@ -509,7 +571,7 @@ export default function NewsClient({
             disabled={isDirectSyncing}
             className="px-3.5 py-2.5 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 font-semibold text-xs rounded-lg border border-purple-800/60 flex items-center gap-1.5 transition-colors"
           >
-            📈 DailyFX
+            📈 Auto-Sync DailyFX
           </button>
 
           <button
@@ -518,7 +580,7 @@ export default function NewsClient({
             disabled={isDirectSyncing}
             className="px-3.5 py-2.5 bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 font-semibold text-xs rounded-lg border border-blue-800/60 flex items-center gap-1.5 transition-colors"
           >
-            🏷️ FXStreet
+            🏷️ Auto-Sync FXStreet
           </button>
         </div>
 
