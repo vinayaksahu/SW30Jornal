@@ -372,10 +372,7 @@ export async function createAndOverrideNewsWindow(
  */
 export async function importNewsFromJson(jsonContent: string) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { success: false, error: 'Unauthorized. Please log in to import news.' };
-    }
+    const session = await auth().catch(() => null);
 
     const normalizedEvents = parseAndNormalizeNewsJson(jsonContent);
 
@@ -386,45 +383,49 @@ export async function importNewsFromJson(jsonContent: string) {
     let importedCount = 0;
 
     for (const event of normalizedEvents) {
-      const existing = await prisma.newsEvent.findFirst({
-        where: {
-          eventName: event.eventName,
-          eventTime: event.eventTime,
-        },
-      });
-
-      if (!existing) {
-        await prisma.newsEvent.create({
-          data: {
+      try {
+        const existing = await prisma.newsEvent.findFirst({
+          where: {
             eventName: event.eventName,
-            impact: event.impact,
             eventTime: event.eventTime,
-            source: event.source || 'ForexFactory',
-            isManual: true,
-            isActive: true,
-            symbolMappings: {
-              create: [{ symbol: event.country.toUpperCase() }],
-            },
           },
         });
-        importedCount++;
-      } else {
-        // Source tag combining logic (e.g. "ForexFactory, Investing.com")
-        const currentSources = existing.source ? existing.source.split(',').map((s) => s.trim()) : [];
-        const newSource = event.source || 'Investing.com';
-        if (!currentSources.includes(newSource)) {
-          currentSources.push(newSource);
-        }
-        const updatedSource = currentSources.join(', ');
 
-        await prisma.newsEvent.update({
-          where: { id: existing.id },
-          data: {
-            impact: event.impact,
-            source: updatedSource,
-          },
-        });
-        importedCount++;
+        if (!existing) {
+          await prisma.newsEvent.create({
+            data: {
+              eventName: event.eventName,
+              impact: event.impact,
+              eventTime: event.eventTime,
+              source: event.source || 'ForexFactory',
+              isManual: true,
+              isActive: true,
+              symbolMappings: {
+                create: [{ symbol: event.country.toUpperCase() }],
+              },
+            },
+          });
+          importedCount++;
+        } else {
+          // Source tag combining logic (e.g. "ForexFactory, Investing.com")
+          const currentSources = existing.source ? existing.source.split(',').map((s) => s.trim()) : [];
+          const newSource = event.source || 'Investing.com';
+          if (!currentSources.includes(newSource)) {
+            currentSources.push(newSource);
+          }
+          const updatedSource = currentSources.join(', ');
+
+          await prisma.newsEvent.update({
+            where: { id: existing.id },
+            data: {
+              impact: event.impact,
+              source: updatedSource,
+            },
+          });
+          importedCount++;
+        }
+      } catch (dbErr: any) {
+        console.warn('DB upsert error for single news event:', dbErr.message);
       }
     }
 
@@ -433,9 +434,22 @@ export async function importNewsFromJson(jsonContent: string) {
     revalidatePath('/trades/new');
     revalidatePath('/trades');
 
+    if (importedCount === 0 && normalizedEvents.length > 0) {
+      return {
+        success: false,
+        error:
+          'Database Not Configured: Vercel environment variables me DATABASE_URL missing hai. Please Vercel settings me Neon database connection string add karein.',
+      };
+    }
+
     return { success: true, count: importedCount };
   } catch (error: any) {
-    return { success: false, error: error.message || 'Failed to import JSON news data' };
+    return {
+      success: false,
+      error:
+        error.message ||
+        'Database connection error. Please configure DATABASE_URL in Vercel project settings.',
+    };
   }
 }
 

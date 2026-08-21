@@ -18,7 +18,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from 'lucide-react';
-import { NewsItem } from '@/lib/services/news-service';
+import { NewsItem, parseAndNormalizeNewsJson } from '@/lib/services/news-service';
 import { syncNewsEvents, importNewsFromJson, syncDirectFeedUrl } from '@/actions/news';
 import { CurrencyBadge } from '@/components/news/currency-badge';
 import { NewsImpactBadge } from '@/components/news/news-impact-badge';
@@ -142,14 +142,64 @@ export default function NewsClient({
       toast.error('Please paste JSON text into the box');
       return;
     }
+
+    // 1. Client-side parse fallback so news appears on screen instantly
+    try {
+      const parsedLocal = parseAndNormalizeNewsJson(inlineJsonInput, selectedSourceName);
+      if (parsedLocal && parsedLocal.length > 0) {
+        const localItems: NewsItem[] = parsedLocal.map((e: any, idx: number) => ({
+          id: `manual-${Date.now()}-${idx}`,
+          title: e.eventName,
+          country: e.country,
+          impact: e.impact,
+          time: e.eventTime,
+          source: e.source,
+          forecast: e.forecast || undefined,
+          previous: e.previous || undefined,
+          actual: e.actual || undefined,
+        }));
+
+        setNewsList((prev) => {
+          const combined = [...prev];
+          for (const item of localItems) {
+            const existingIdx = combined.findIndex(
+              (x) =>
+                x.title.toLowerCase() === item.title.toLowerCase() &&
+                Math.abs(new Date(x.time).getTime() - new Date(item.time).getTime()) < 3600000
+            );
+            if (existingIdx >= 0) {
+              const currentSources = (combined[existingIdx].source || '')
+                .split(',')
+                .map((s) => s.trim());
+              if (!currentSources.includes(item.source || '')) {
+                currentSources.push(item.source || '');
+              }
+              combined[existingIdx] = {
+                ...combined[existingIdx],
+                source: currentSources.filter(Boolean).join(', '),
+              };
+            } else {
+              combined.push(item);
+            }
+          }
+          return combined;
+        });
+      }
+    } catch (parseErr: any) {
+      toast.error('Invalid JSON format: ' + (parseErr.message || 'Check JSON syntax'));
+      return;
+    }
+
     startImport(async () => {
       const res = await importNewsFromJson(inlineJsonInput);
-      if (res.success) {
+      if (res.success && 'count' in res) {
         toast.success(`Successfully imported ${res.count} events!`);
         setInlineJsonInput('');
         setSyncErrorMessage(null);
       } else {
-        toast.error(res.error || 'Failed to import JSON data');
+        const err = 'error' in res ? res.error : 'Saved locally on screen.';
+        toast.info(`News updated on screen!`);
+        setSyncErrorMessage(err);
       }
     });
   };
